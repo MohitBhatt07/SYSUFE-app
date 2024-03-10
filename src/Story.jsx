@@ -18,7 +18,15 @@ import {
   push,
   onValue,
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
-import {  Bounce, toast } from 'react-toastify';
+import { Bounce, toast } from "react-toastify";
+
+import { IoMdStar } from "react-icons/io";
+import { useLocation, useNavigate, useParams } from "react-router";
+import { FaCopy, FaShareAlt } from "react-icons/fa";
+
+import { Link } from "react-router-dom";
+import { RiLinkM } from "react-icons/ri";
+
 
 const appSetting = {
   databaseURL:
@@ -40,6 +48,7 @@ let initialCategories = [
 ];
 
 export default function Story() {
+  const { categoryValue } = useParams();
   const [swiper, setSwiper] = useState(null);
 
   const [subject, setSubject] = useState("");
@@ -64,7 +73,7 @@ export default function Story() {
   const [content, setContent] = useState(false);
 
   const [check, setCheck] = useState("");
-  const [selectedValue, setSelectedValue] = useState("");
+  const [selectedValue, setSelectedValue] = useState(categoryValue);
 
   const [stories, setStories] = useState(0);
   const [expandedSections, setExpandedSections] = useState({});
@@ -72,6 +81,9 @@ export default function Story() {
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
+  const [showSharePopup, setShowSharePopup] = useState(false);
+  const [isStarred, setIsStarred] = useState(false);
+  const [isCopied ,setIsCopied] = useState(false);
   useEffect(() => {
     onValue(cat, function (snapshot) {
       if (snapshot.exists()) {
@@ -185,21 +197,18 @@ export default function Story() {
 
     if (subject && describe && selectedCategory) {
       push(ref(database, `List/${selectedCategory}`), Data);
-
-      // added by me 
-      toast('Story Posted', {
+      toast("Story Posted", {
         position: "top-right",
         autoClose: 2000,
         hideProgressBar: true,
         closeOnClick: true,
-        style : {"backgroundColor" : "greenyellow"},
+        style: { backgroundColor: "greenyellow" },
         pauseOnHover: true,
         draggable: true,
         progress: undefined,
         theme: "dark",
         transition: Bounce,
-        });
-        //
+      });
       if (selectedCategory) {
         if (
           newCat &&
@@ -207,9 +216,7 @@ export default function Story() {
             (item) => item.toLowerCase() === selectedCategory.toLowerCase()
           )
         ) {
-
           push(cat, selectedCategory);
-          
         }
         clear();
       }
@@ -217,6 +224,23 @@ export default function Story() {
 
     // setContent(false)
   }
+  ////added by me
+
+  useEffect(() => {
+    const userPreference =
+      JSON.parse(localStorage.getItem("userPreference")) || {};
+    setIsStarred(userPreference[selectedValue] || false);
+  }, [selectedValue]);
+
+  const handleStarClick = () => {
+    const updatedStatus = !isStarred;
+    const userPreference =
+      JSON.parse(localStorage.getItem("userPreference")) || {};
+    userPreference[selectedValue] = updatedStatus;
+    localStorage.setItem("userPreference", JSON.stringify(userPreference));
+    setIsStarred(updatedStatus);
+  };
+  ////////////////////////////////
 
   function handleShow() {
     setShow((prev) => !prev);
@@ -276,9 +300,12 @@ export default function Story() {
   function handleflip() {
     setFlipped((prev) => !prev);
   }
-
+  const navigate = useNavigate();
+  const location = useLocation();
+  const url = import.meta.env.VITE_WEBSITE_URL + location.pathname;
   function handleChildValue(value) {
     setSelectedValue(value);
+    navigate(`../${value}`, { relative: "path" });
     setSearch("");
   }
 
@@ -358,8 +385,7 @@ export default function Story() {
   function goback() {
     setReveal({});
   }
-
-  //added by me //////////////////////////////////
+  //added by me
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -375,7 +401,22 @@ export default function Story() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
-////////////////////////////////////////////////////////////////
+
+  const handleShareClick = () => {
+    setShowSharePopup(true);
+  };
+
+  const closeSharePopup = () => {
+    setShowSharePopup(false);
+    setIsCopied(false)
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+  };
+
+  //////////////////
   useEffect(() => {
     if (selectedValue) {
       onValue(
@@ -384,8 +425,7 @@ export default function Story() {
           if (snapshot.exists()) {
             setStories(Object.entries(snapshot.val()).length);
             setMappable(Object.entries(snapshot.val()));
-          }
-          else{
+          } else {
             setStories(0);
             setMappable([]);
           }
@@ -403,8 +443,7 @@ export default function Story() {
           if (snapshot.exists()) {
             setStories(Object.entries(snapshot.val()).length);
             setMappable(Object.entries(snapshot.val()));
-          }
-          else{
+          } else {
             setStories(0);
             setMappable([]);
           }
@@ -552,7 +591,10 @@ export default function Story() {
 
   return (
     <div className="flex">
-      <Popular onChildValue={handleChildValue} />
+      <Popular
+        onChildValue={handleChildValue}
+        isFavourite={isStarred || false}
+      />
       <div className="story-section">
         <form className="section-1">
           <div className="section-1-head">
@@ -660,47 +702,61 @@ export default function Story() {
 
         <section className="section-2">
           <div className="section-2-head">
-            <h1>Read their stories</h1>
+            {/* added by me */}
+            {selectedValue === undefined ? (
+              <h1>Read their stories</h1>
+            ) : (
+              <h1>Read stories on {selectedValue}</h1>
+            )}
 
             <div className="looking">
               <div className="choose" ref={dropdownRef}>
                 <label htmlFor="choose">
                   <h3>What are you looking for?</h3>
                 </label>
-               
-                  <input
-                    type="text"
-                    id="choose"
-                    placeholder="Browse a Category"
-                    value={search}
-                    onClick={handleClick}
-                    onChange={handleSearch2}
-                    required
-                  />
-              
+
+                <input
+                  type="text"
+                  id="choose"
+                  placeholder="Browse a Category"
+                  value={search}
+                  onClick={handleClick}
+                  onChange={handleSearch2}
+                  required
+                />
+
                 <BiChevronDown className="btn-2" onClick={handleClick2} />
               </div>
 
               {show4 ? (
                 <ul className="search-list search-list-2">
                   {initialCategories.map((category) => (
-                    <li
+                    <Link
                       key={category}
-                      onClick={() => handleCategorySelect2(category)}
+                      className="link-categories"
+                      to={{ pathname: `/${category}` }}
                     >
-                      {category}
-                    </li>
+                      <li
+                        key={category}
+                        onClick={() => handleCategorySelect2(category)}
+                      >
+                        {category}
+                      </li>
+                    </Link>
                   ))}
                 </ul>
               ) : show3 && search.length === 0 ? (
                 <ul className="search-list search-list-2">
                   {initialCategories.map((category) => (
-                    <li
+                    <Link
                       key={category}
-                      onClick={() => handleCategorySelect2(category)}
+                      className="link-categories"
+                      to={{ pathname: `/${category}` }}
                     >
-                      {category}
-                    </li>
+                      <li onClick={() => handleCategorySelect2(category)}>
+                        {category}
+                      </li>
+                    </Link>
                   ))}
                 </ul>
               ) : (
@@ -708,17 +764,48 @@ export default function Story() {
                 searchResults2.length > 0 && (
                   <ul className="search-list search-list-2">
                     {searchResults2.map((category) => (
-                      <li
+                      <Link
                         key={category}
-                        onClick={() => handleCategorySelect2(category)}
+                        className="link-categories"
+                        to={{ pathname: `/${category}` }}
                       >
-                        {category}
-                      </li>
+                        <li
+                          key={category}
+                          onClick={() => handleCategorySelect2(category)}
+                        >
+                          {category}
+                        </li>
+                      </Link>
                     ))}
                   </ul>
                 )
               )}
               <div className="flex-filter">
+                {/* //added by me */}
+                { categoryValue && 
+                  <FaShareAlt
+                    className="share-icon"
+                    onClick={handleShareClick}
+                  />
+                }
+                {showSharePopup && (
+                  <div className="modal-wrapper" onClick={closeSharePopup}>
+                      <div className="share-popup" onClick={(e) => e.stopPropagation()}>
+                        <div className="share-btn-class"> 
+                          <RiLinkM />
+                          <input readOnly value={url}/>
+                          <button onClick={copyLink}>{isCopied ? "copied" : "copy"}</button>
+                        </div>
+                    </div>
+                  </div>
+                )}
+                {selectedValue && (
+                  <IoMdStar
+                    className={`${isStarred ? "star-clicked" : "star"}`}
+                    onClick={handleStarClick}
+                  />
+                )}
+                {/* ////// */}
                 <h2 className="filter-heading">
                   Sort:
                   <span onClick={handleflip}>
@@ -748,7 +835,7 @@ export default function Story() {
 
           {windowWidth > 425 ? (
             <div className="parent-container">
-              {selectedValue && (
+              {/* {selectedValue && (
                 <div className="container">
                   <section className="item-section-main">
                     <div className="item-section-container">
@@ -756,7 +843,7 @@ export default function Story() {
                     </div>
                   </section>
                 </div>
-              )}
+              )} */}
 
               {(!menu || search.length === 0) && (
                 <div className="container">
@@ -781,7 +868,7 @@ export default function Story() {
           ) : (
             <div className="container">
               <section className="item-section-main">
-                <Swiper
+                {/* <Swiper
                   effect="coverflow"
                   // grabCursor='true'
                   centeredSlides="true"
@@ -795,7 +882,7 @@ export default function Story() {
                   }}
                   // onSwiper={handleSwiperInit}
                   // onSlideChange={handleSlideChange}
-                >
+                > */}
                   <div className="swiper-wrapper">
                     {(() => {
                       const sortedMappable = mappable.sort((a, b) => {
@@ -835,7 +922,6 @@ export default function Story() {
                       });
                     })()}
                   </div>
-                </Swiper>
               </section>
             </div>
           )}
