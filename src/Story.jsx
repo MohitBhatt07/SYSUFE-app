@@ -556,6 +556,7 @@ export default function Story() {
   }
 
   function sorted(mappable) {
+   
     const sortedMappable = mappable.sort((a, b) => {
       const dateA = new Date(formattedDate2(Object.values(a[1])[4]));
       const dateB = new Date(formattedDate2(Object.values(b[1])[4]));
